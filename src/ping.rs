@@ -39,12 +39,12 @@ fn ping_with_socktype(
 
     let mut socket = if dest.is_ipv4() {
         if request.encode::<IcmpV4>(&mut buffer[..]).is_err() {
-            return Err(Error::InternalError.into());
+            return Err(Error::InternalError);
         }
         Socket::new(Domain::IPV4, socket_type, Some(Protocol::ICMPV4))?
     } else {
         if request.encode::<IcmpV6>(&mut buffer[..]).is_err() {
-            return Err(Error::InternalError.into());
+            return Err(Error::InternalError);
         }
         Socket::new(Domain::IPV6, socket_type, Some(Protocol::ICMPV6))?
     };
@@ -57,30 +57,30 @@ fn ping_with_socktype(
 
     socket.set_write_timeout(timeout)?;
 
-    socket.send_to(&mut buffer, &dest.into())?;
+    socket.send_to(&buffer, &dest.into())?;
 
     socket.set_read_timeout(timeout)?;
 
     let mut buffer: [u8; 2048] = [0; 2048];
-    socket.read(&mut buffer)?;
+    socket.read_exact(&mut buffer)?;
 
     let _reply = if dest.is_ipv4() {
         let ipv4_packet = match IpV4Packet::decode(&buffer) {
             Ok(packet) => packet,
-            Err(_) => return Err(Error::InternalError.into()),
+            Err(_) => return Err(Error::InternalError),
         };
         match EchoReply::decode::<IcmpV4>(ipv4_packet.data) {
             Ok(reply) => reply,
-            Err(_) => return Err(Error::InternalError.into()),
+            Err(_) => return Err(Error::InternalError),
         }
     } else {
         match EchoReply::decode::<IcmpV6>(&buffer) {
             Ok(reply) => reply,
-            Err(_) => return Err(Error::InternalError.into()),
+            Err(_) => return Err(Error::InternalError),
         }
     };
 
-    return Ok(());
+    Ok(())
 }
 
 pub mod rawsock {
@@ -93,7 +93,7 @@ pub mod rawsock {
         seq_cnt: Option<u16>,
         payload: Option<&Token>,
     ) -> Result<(), Error> {
-        return ping_with_socktype(Type::RAW, addr, timeout, ttl, ident, seq_cnt, payload);
+        ping_with_socktype(Type::RAW, addr, timeout, ttl, ident, seq_cnt, payload)
     }
 }
 
@@ -107,7 +107,7 @@ pub mod dgramsock {
         seq_cnt: Option<u16>,
         payload: Option<&Token>,
     ) -> Result<(), Error> {
-        return ping_with_socktype(Type::DGRAM, addr, timeout, ttl, ident, seq_cnt, payload);
+        ping_with_socktype(Type::DGRAM, addr, timeout, ttl, ident, seq_cnt, payload)
     }
 }
 
@@ -119,5 +119,5 @@ pub fn ping(
     seq_cnt: Option<u16>,
     payload: Option<&Token>,
 ) -> Result<(), Error> {
-    return rawsock::ping(addr, timeout, ttl, ident, seq_cnt, payload);
+    rawsock::ping(addr, timeout, ttl, ident, seq_cnt, payload)
 }
